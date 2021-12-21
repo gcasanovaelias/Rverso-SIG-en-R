@@ -199,12 +199,59 @@ ggplot() + geom_sf(data = Pred, aes(color = var1.var)) +
   scale_color_viridis_c(name = "Varianza [Zinc]") + 
   facet_wrap(~Modelo)
 
-# 4. ¿Cómo elijo el mejor modelo? ----
+# 4. ¿Cómo elijo el mejor modelo? Cross validation----
+  # Se elige mediante el RMSE (Root Mean Square Error)
+  # Cross validation: Entrenamos el modelo con algunos datos y dejamos otros.
+    #* Vemos el error al predecir los datos faltantes
 
+  # krige.cv(): cross validation
+Null_CV <- krige.cv(log(zinc) ~ 1, 
+                    Meuse, model = Abn_fit_null,
+                    nfold = 5) %>% st_as_sf() %>% mutate(Modelo = "Nulo")
 
+Spat_CV <- krige.cv(log(zinc) ~ 1, 
+                    Meuse, model = Abn_fit_Spat,
+                    nfold = 5) %>% st_as_sf() %>% mutate(Modelo = "Espacial")
 
+Dist_CV <- krige.cv(log(zinc) ~ 1, 
+                    Meuse, model = Abn_fit_Dist,
+                    nfold = 5) %>% st_as_sf() %>% mutate(Modelo = "Distancia")
 
+Dist_sq_CV <- krige.cv(log(zinc) ~ 1, 
+                       Meuse, model = Abn_fit_Dist_sq,
+                       nfold = 5) %>% st_as_sf() %>% mutate(Modelo = "sqrt(Dist)")
 
+  # *nfold: indica en cuantas secciones se subdivide la base de datos (5). Se emplean 4 para construir el modelo y 1 para validarlo
+
+Pred_CV <- list(Null_CV, Spat_CV, Dist_CV, Dist_sq_CV) %>% 
+  purrr::reduce(bind_rows)
+
+ggplot() + geom_sf(data = Null_CV, aes(color = factor(fold))) +
+  facet_wrap(~factor(fold)) +
+  scale_color_viridis_d() +
+  theme_bw()
+
+  # Resumen y orden por RMSE ----
+Resumen <- Pred_CV %>% as.data.frame() %>% group_by(Modelo) %>% 
+  summarize(RMSE = sqrt(sum(residual^2/length(residual)))) %>% arrange(RMSE)
+
+  #* Los valores de RMSE van avriando según la eleccion de datos anteriormente realizada. En este caso nos quedamos con el modelo espacial. 
+
+  # Diagnósticos ----
+ggplot(Null_CV, aes(x = observed, y = var1.pred)) + 
+  geom_smooth(method = "lm") +
+  geom_point()
+
+  # Estructura espacial ----
+Var <- variogram(residual ~ 1, Spat_CV)
+
+ggplot(Var, aes(x = dist, y = gamma)) +
+  geom_point() +
+  theme_bw() +
+  xlab("Distancia metros") +
+  ylim(c(0, max(Var$gamma)))
+
+  # *No se genera una estructura espacial clara. La varianza no disminuye a medida que se encuentra más proxima a los puntos
 
 
 
