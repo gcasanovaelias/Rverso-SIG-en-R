@@ -108,7 +108,7 @@ ggplot() +
   geom_line(data = Z_vgm, aes(x = dist, y =gamma, color = Modelo)) + 
   theme_bw()
 
-  #Fit del variograma----
+  #Fit del variograma (modelo espacial)----
 Abn_fit_Spat = fit.variogram(Z_vgm_Spat, 
                              model = vgm(psill = 1, #vgm() hace referencia a un variograma
                                          model = 'Sph', #tipo de correlación, en este caso esférica
@@ -124,6 +124,87 @@ Abn_fit_Spat = fit.variogram(Z_vgm_Spat,
 #*range = 1098.571: a esa distancia es a la cual llegamos a esa asintota
 #*psill = (0.38866509 + 0.08234213) = ~0.47: la semivaianza estabilizada a la asíntota
 #*nugget: varianza esperada a distancia cero (tiene que ver con el intercepto)
+
+# sessionInfo()
+sessionInfo()
+
+  # Fit del variograma (todos los modelos) ----
+Abn_fit_null <- fit.variogram(Z_vgm_null, model = vgm(psill = 1, model = "Sph", range = 700, nugget = 1))
+
+Abn_fit_Spat <- fit.variogram(Z_vgm_Spat, model = vgm(psill = 1, model = "Sph", range = 700, nugget = 1))
+
+Abn_fit_Dist<- fit.variogram(Z_vgm_Dist, model = vgm(psill = 1, model = "Sph", range = 700, nugget = 1))
+
+Abn_fit_Dist_sq <- fit.variogram(Z_vgm_Dist_sq, model = vgm(psill = 1, model = "Sph", range = 700, nugget = 1))
+
+# 3. Krigging ----
+  # Datos ----
+data (meuse.grid)
+
+Meuse_Grid <- st_as_sf(meuse.grid, coords = c(1,2), crs = 28992)
+
+ggplot() + geom_sf(data = Meuse_Grid,
+                   aes(color = dist)) + scale_color_viridis_c(direction = -1)
+
+  # Ordinary kriging ----
+Spat_pred <- krige(formula = log(zinc) ~ 1, 
+                   data = Meuse, # Dato inicial
+                   newdata = Meuse_Grid, # Datos por sobre los cuales va a predecir
+                   model = Abn_fit_Spat) # Modelo empleado para predecir
+
+# En el objeto Spat_pred podemos observar dos variables: los predichos (var1.pred) y el error estándar o varianza (var1.var)
+# Importante: Si comparamos los valores predichos con los valores originales estos últimos son muy bajos. Esto es producto de que estamos trabajando con el logaritmo (de la concentracion de Zn)
+# Al graficar Spat_pred debemos aplicar una funcion exponencial de manera de eliminar el logaritmo
+
+  # Observando predicciones
+ggplot() + geom_sf(data = Spat_pred, 
+                   aes(color = exp(var1.pred))) +
+  scale_color_viridis_c(name = "[Zinc]")
+
+  # Observando varianza
+ggplot() + geom_sf(data = Spat_pred, 
+                   aes(color = var1.var)) +
+  scale_color_viridis_c(name = "Varianza C. Zinc")
+
+# Se observa que esos puntos oscuros corresponden a los puntos en los cuales se hicieron las mediciones y que poseen la menor varianza
+
+  # Predicción para todos los modelos ----
+Null_pred <- krige(log(zinc) ~ 1, Meuse, Meuse_Grid, 
+                   model = Abn_fit_null) %>% 
+  mutate(Modelo = "Nulo")
+
+Spat_pred <- krige(log(zinc) ~ 1, Meuse, Meuse_Grid, 
+                   model = Abn_fit_Spat) %>% 
+  mutate(Modelo = "Espacial")
+
+Dist_pred <- krige(log(zinc) ~ 1, Meuse, Meuse_Grid, 
+                   model = Abn_fit_Dist) %>% 
+  mutate(Modelo = "Distancia")
+
+Dist_sq_pred <- krige(log(zinc) ~ 1, Meuse, Meuse_Grid, 
+                   model = Abn_fit_Dist_sq) %>% 
+  mutate(Modelo = "sqrt(Dist)")
+
+  # Juntar modelos predictivos
+Pred <- list(Null_pred, Spat_pred, Dist_pred, Dist_sq_pred) %>% 
+  purrr::reduce(bind_rows)
+
+  # Observar predicciones en general
+ggplot() + geom_sf(data = Pred, aes(color = exp(var1.pred))) +
+  scale_color_viridis_c(name = "[Zinc]") + 
+  facet_wrap(~Modelo)
+
+  # Observar varianza en general
+ggplot() + geom_sf(data = Pred, aes(color = var1.var)) +
+  scale_color_viridis_c(name = "Varianza [Zinc]") + 
+  facet_wrap(~Modelo)
+
+# 4. ¿Cómo elijo el mejor modelo? ----
+
+
+
+
+
 
 
 
