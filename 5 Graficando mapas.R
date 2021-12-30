@@ -133,6 +133,8 @@ dev.off()
 download.file("https://ndownloader.figshare.com/files/21843771", 
               destfile = "Priority.tiff")
 
+priority <- stack("Priority.tiff")
+
 download.file("https://archive.org/download/priority...", 
               destfile = "Priority.rds")
 

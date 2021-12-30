@@ -54,7 +54,9 @@ ggplot() +
 Bioclimatic <- getData(name = "worldclim", var = "bio", res = 0.5, lon = -70, lat = -50) %>% 
   crop(buffer) %>% trim()
 
-
+# Cortamos el tile
+names(Bioclimatic) <- str_remove_all(string = names(Bioclimatic),
+                                     pattern = "_43")
 
 
 
