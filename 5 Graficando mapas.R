@@ -114,9 +114,9 @@ mapa + geom_sf(data = topo2) +
                            force = 1)
 
 # Exportar archivos de alta calidad----
-#*Generalmente, la exportación normal de imágenes mediante R es de una reoslución muy baja (~72 pixeles por pulgada)
+#*Generalmente, la exportación normal de imágenes mediante R es de una resolución muy baja (~72 pixeles por pulgada)
 #*Para journals y publicaciones se requieren de al menos 300 pixeles por pulgada
-#*Debido a esto, se emplean los graphic device
+#*Debido a esto, se emplean los graphic device (tiff(), png(), pdf())
 
 tiff("Mapa.tiff", 
      units = "in",
@@ -126,8 +126,26 @@ tiff("Mapa.tiff",
      compression = "lzw") #Cuando se descomprime no van a perder información
 
 # Una vez corrido este codigo se debe correr otro set de codigo que genere un nuevo grafico, seguido de dev.off()
+plot()
 
 dev.off()
+
+# Delete files with base::unlink()
+base::unlink("Mapa.tiff")
+
+# Método ggsave(). Convenient function for saving a plot. It defaults to saving the last plot that was displayed using the size of the current graphics device
+
+ggsave(filename = "Mapa.png",
+       plot = last_plot(),
+       device = "png",
+       path = "../",
+       width = 10,
+       height = 5,
+       units = "in",
+       # Plot resolution "retina" (320)
+       dpi = "retina",
+       # Background colour
+       bg = NULL)
 
 # Rasters ----
 download.file("https://ndownloader.figshare.com/files/21843771", 
